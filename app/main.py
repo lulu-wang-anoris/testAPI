@@ -4,12 +4,13 @@ from fastapi.responses import JSONResponse
 
 APP_VERSION = "1.0.0"
 
+
 app = FastAPI(title="TestAPI", version=APP_VERSION)
 
 
 @app.get("/")
 def root():
-    return {"message": "TestAPI is running"}
+    return {"message": "Welcome to Anoris Capital API system"}
 
 
 @app.get("/health")
