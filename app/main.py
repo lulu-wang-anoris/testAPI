@@ -61,7 +61,7 @@ def list_tables():
         cur = conn.cursor()
         cur.execute("""
             SELECT table_name FROM information_schema.tables
-            WHERE table_schema = 'public' ORDER BY table_name
+            WHERE table_schema = 'app' ORDER BY table_name
         """)
         tables = [row[0] for row in cur.fetchall()]
         cur.close()
