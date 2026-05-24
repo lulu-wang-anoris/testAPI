@@ -1,19 +1,26 @@
 import os
 import json
 import uuid
+import logging
 import traceback
 from datetime import datetime, timezone
 import boto3
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, HttpUrl
+from app.routers.db import get_db_conn
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Vendor Dataload"])
 
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 sqs = boto3.client("sqs", region_name=AWS_REGION)
-
-# print(boto3.client("sts").get_caller_identity(), flush=True)
 
 
 class VendorDownloadRequest(BaseModel):
@@ -46,38 +53,47 @@ def create_vendor_download_job(req: VendorDownloadRequest):
         "s3_key": s3_key,
     }
 
+    logger.info(f"[{job_id}] Starting vendor download job — vendor={req.vendor} datasetId={req.datasetId} business_date={req.business_date}")
+
     try:
-        
-        db.execute("""
+        logger.info(f"[{job_id}] Stage 1/2: Inserting job record into app.vendor_download_jobs")
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("""
             INSERT INTO app.vendor_download_jobs (
                 job_id, vendor, dataset_id, business_date,
                 vendor_url, s3_bucket, s3_key, status
             )
             VALUES (
-                :job_id, :vendor, :dataset_id, :business_date,
-                :vendor_url, :s3_bucket, :s3_key, 'QUEUED'
+                %(job_id)s, %(vendor)s, %(dataset_id)s, %(business_date)s,
+                %(vendor_url)s, %(s3_bucket)s, %(s3_key)s, 'QUEUED'
             )
-
         """, {
-
             "job_id": job_id,
             "vendor": req.vendor,
             "dataset_id": str(req.datasetId),
             "business_date": req.business_date,
-            "vendor_url": req.url,
+            "vendor_url": str(req.url),
             "s3_bucket": s3_bucket,
-            "s3_key": s3_key
+            "s3_key": s3_key,
         })
-        
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.info(f"[{job_id}] Stage 1/2: DB insert successful")
+
+        logger.info(f"[{job_id}] Stage 2/2: Sending message to SQS — s3_key={s3_key}")
         sqs.send_message(
             QueueUrl=queue_url,
             MessageBody=json.dumps(message),
         )
+        logger.info(f"[{job_id}] Stage 2/2: SQS message sent successfully")
+
     except Exception as e:
-        print("ERROR in /vendor-download-jobs:", repr(e), flush=True)
-        traceback.print_exc()
+        logger.error(f"[{job_id}] ERROR in /vendor-download-jobs: {repr(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+    logger.info(f"[{job_id}] Job queued successfully — s3_key={s3_key}")
     return {
         "job_id": job_id,
         "status": "queued",
