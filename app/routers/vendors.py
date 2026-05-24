@@ -13,7 +13,7 @@ router = APIRouter(tags=["Vendor Dataload"])
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 sqs = boto3.client("sqs", region_name=AWS_REGION)
 
-print(boto3.client("sts").get_caller_identity(), flush=True)
+# print(boto3.client("sts").get_caller_identity(), flush=True)
 
 
 class VendorDownloadRequest(BaseModel):
@@ -47,6 +47,28 @@ def create_vendor_download_job(req: VendorDownloadRequest):
     }
 
     try:
+        
+        db.execute("""
+            INSERT INTO app.vendor_download_jobs (
+                job_id, vendor, dataset_id, business_date,
+                vendor_url, s3_bucket, s3_key, status
+            )
+            VALUES (
+                :job_id, :vendor, :dataset_id, :business_date,
+                :vendor_url, :s3_bucket, :s3_key, 'QUEUED'
+            )
+
+        """, {
+
+            "job_id": job_id,
+            "vendor": req.vendor,
+            "dataset_id": str(req.datasetId),
+            "business_date": req.business_date,
+            "vendor_url": req.url,
+            "s3_bucket": s3_bucket,
+            "s3_key": s3_key
+        })
+        
         sqs.send_message(
             QueueUrl=queue_url,
             MessageBody=json.dumps(message),
@@ -59,5 +81,6 @@ def create_vendor_download_job(req: VendorDownloadRequest):
     return {
         "job_id": job_id,
         "status": "queued",
+        "s3_bucket": s3_bucket,
         "s3_key": s3_key,
     }
