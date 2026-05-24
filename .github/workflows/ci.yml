@@ -55,8 +55,8 @@ jobs:
                   "DB_PASSWORD": "${{ secrets.DB_PASSWORD }}",
                   "S3_BUCKET": "${{ secrets.S3_BUCKET }}",
                   "SQS_QUEUE_URL": "${{ secrets.SQS_QUEUE_URL }}",
-                  "AWS_ACCESS_KEY_ID": "${{ secrets.LIGHTSAIL_RUNTIME_ACCESS_KEY_ID }}",
-                  "AWS_SECRET_ACCESS_KEY": "${{ secrets.LIGHTSAIL_RUNTIME_SECRET_ACCESS_KEY }}"
+                  "AWS_ACCESS_KEY_ID": "${{ secrets.LIGHTSAIL_AWS_ACCESS_KEY_ID }}",
+                  "AWS_SECRET_ACCESS_KEY": "${{ secrets.LIGHTSAIL_AWS_SECRET_ACCESS_KEY }}"
                 }
               }
             }' \
