@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import traceback
+from datetime import datetime, timezone
 import boto3
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -28,11 +29,12 @@ def create_vendor_download_job(req: VendorDownloadRequest):
     queue_url = os.environ["SQS_QUEUE_URL"]
     s3_bucket = os.environ["S3_BUCKET"]
 
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     s3_key = (
         f"raw/vendor={req.vendor}/"
         f"dataset={req.datasetId}/"
         f"business_date={req.business_date}/"
-        f"{job_id}.dat"
+        f"{timestamp}_{job_id[:8]}.csv"
     )
 
     message = {
