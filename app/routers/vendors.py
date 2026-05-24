@@ -21,6 +21,7 @@ class VendorDownloadRequest(BaseModel):
     url: HttpUrl
     datasetId: int
     business_date: str
+    output_file_name: str
 
 
 @router.post("/vendor-download-jobs")
@@ -29,12 +30,10 @@ def create_vendor_download_job(req: VendorDownloadRequest):
     queue_url = os.environ["SQS_QUEUE_URL"]
     s3_bucket = os.environ["S3_BUCKET"]
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     s3_key = (
-        f"raw/vendor={req.vendor}/"
-        f"dataset={req.datasetId}/"
-        f"business_date={req.business_date}/"
-        f"{timestamp}_{job_id[:8]}.csv"
+        f"{req.vendor}/{req.datasetId}/{req.business_date}/"
+        f"{req.output_file_name}_{timestamp}_{job_id[:8]}.csv"
     )
 
     message = {
