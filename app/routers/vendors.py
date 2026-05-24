@@ -100,3 +100,39 @@ def create_vendor_download_job(req: VendorDownloadRequest):
         "s3_bucket": s3_bucket,
         "s3_key": s3_key,
     }
+
+
+@router.get("/vendor-download-jobs/{job_id}")
+def get_job_status(job_id: str):
+    logger.info(f"[{job_id}] Checking job status")
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT job_id, vendor, dataset_id, business_date,
+                   vendor_url, s3_bucket, s3_key, status
+            FROM app.vendor_download_jobs
+            WHERE job_id = %s
+        """, (job_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+        return {
+            "job_id": row[0],
+            "vendor": row[1],
+            "dataset_id": row[2],
+            "business_date": row[3],
+            "vendor_url": row[4],
+            "s3_bucket": row[5],
+            "s3_key": row[6],
+            "status": row[7],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[{job_id}] ERROR checking job status: {repr(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
