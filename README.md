@@ -4,14 +4,24 @@ A lightweight Python REST API built with FastAPI, containerized with Docker, and
 
 ## Endpoints
 
+### General
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Welcome message |
 | GET | `/health` | App health check |
 | GET | `/version` | App version |
 | GET | `/env` | Safe environment variables |
+
+### PostgreSQL
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/db-health` | PostgreSQL connection check |
-| GET | `/db-tables` | List all tables in the database |
+| GET | `/db-tables` | List all tables in the `app` schema |
+
+### Vendors
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/vendor-download-jobs` | Queue a vendor data download job to SQS |
 
 ## Run Locally
 
@@ -48,10 +58,14 @@ docker run -p 8080:8080 --env-file .env testapi
 
 ## Deployment
 
-Pushes to `main` automatically trigger the GitHub Actions workflow (`.github/workflows/ci.yml`) which:
-1. Builds the Docker image
-2. Pushes it to AWS Lightsail
-3. Creates a new container deployment
+Deployment is **manual** — pushes to `main` do not auto-deploy. To deploy:
+
+1. Go to **Actions → Deploy to Lightsail → Run workflow**
+
+The workflow will:
+1. Build the Docker image
+2. Push it to AWS Lightsail
+3. Create a new container deployment
 
 ### Required GitHub Secrets
 
@@ -64,3 +78,5 @@ Pushes to `main` automatically trigger the GitHub Actions workflow (`.github/wor
 | `DB_NAME` | Database name |
 | `DB_USER` | Database user |
 | `DB_PASSWORD` | Database password |
+| `S3_BUCKET` | S3 bucket for vendor data |
+| `SQS_QUEUE_URL` | SQS queue URL for vendor download jobs |

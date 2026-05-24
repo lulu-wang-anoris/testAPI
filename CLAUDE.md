@@ -2,44 +2,60 @@
 
 ## Project Overview
 
-Lightweight FastAPI REST API deployed to AWS Lightsail via Docker. Connects to a PostgreSQL RDS instance on AWS.
+Lightweight FastAPI REST API deployed to AWS Lightsail via Docker. Connects to a PostgreSQL RDS instance and uses AWS SQS/S3 for vendor data download jobs.
 
 ## Project Structure
 
 ```
 testAPI/
 ├── app/
-│   └── main.py          # All endpoints and DB connection logic
+│   ├── main.py              # Core endpoints: /, /health, /version, /env
+│   └── routers/
+│       ├── db.py            # PostgreSQL endpoints: /db-health, /db-tables
+│       └── vendors.py       # Vendor endpoints: /vendor-download-jobs
 ├── .github/
 │   └── workflows/
-│       └── ci.yml       # GitHub Actions deploy pipeline
-├── Dockerfile           # Container config, exposes port 8080
-├── requirements.txt     # Python dependencies
-├── .env                 # Local credentials (gitignored, never commit)
-├── .env.example         # Credential template (safe to commit)
+│       └── ci.yml           # Manual deploy pipeline (workflow_dispatch only)
+├── Dockerfile               # Container config, exposes port 8080
+├── requirements.txt         # Python dependencies
+├── .env                     # Local credentials (gitignored, never commit)
+├── .env.example             # Credential template (safe to commit)
 └── .gitignore
 ```
 
 ## Key Conventions
 
-- All endpoints live in `app/main.py`
-- DB connections use the `get_db_conn()` helper — don't duplicate connection logic
+- Core/general endpoints go in `app/main.py`
+- Group new endpoints by domain in `app/routers/` with an `APIRouter`
+- DB connections use `get_db_conn()` in `routers/db.py` — don't duplicate connection logic
 - Credentials are always read from environment variables via `os.environ`
 - Port is `8080` (both Docker and uvicorn)
 - Never hardcode credentials or commit `.env`
+- Deployment is manual — push to `main` does not auto-deploy
 
-## Adding a New Endpoint
+## Adding a New Router
 
-Add it to `app/main.py`:
+1. Create `app/routers/your_domain.py`:
 ```python
-@app.get("/my-endpoint")
-def my_endpoint():
+from fastapi import APIRouter
+router = APIRouter(tags=["Your Domain"])
+
+@router.get("/your-endpoint")
+def your_endpoint():
     return {"key": "value"}
 ```
 
-For DB endpoints, use the `get_db_conn()` helper and always close the connection:
+2. Register it in `app/main.py`:
 ```python
-@app.get("/my-db-endpoint")
+from app.routers import your_domain
+app.include_router(your_domain.router)
+```
+
+## Adding a DB Endpoint
+
+Use `get_db_conn()` from `routers/db.py` and always close the connection:
+```python
+@router.get("/my-db-endpoint")
 def my_db_endpoint():
     try:
         conn = get_db_conn()
@@ -53,6 +69,18 @@ def my_db_endpoint():
         return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
 ```
 
+## Environment Variables
+
+| Variable | Used In | Description |
+|----------|---------|-------------|
+| `DB_HOST` | `routers/db.py` | RDS endpoint |
+| `DB_PORT` | `routers/db.py` | RDS port |
+| `DB_NAME` | `routers/db.py` | Database name |
+| `DB_USER` | `routers/db.py` | Database user |
+| `DB_PASSWORD` | `routers/db.py` | Database password |
+| `S3_BUCKET` | `routers/vendors.py` | S3 bucket for vendor data |
+| `SQS_QUEUE_URL` | `routers/vendors.py` | SQS queue for download jobs |
+
 ## Local Development
 
 ```bash
@@ -64,4 +92,4 @@ cp .env.example .env   # fill in real credentials
 
 ## Deployment
 
-Push to `main` — GitHub Actions handles the rest. Requires AWS and DB secrets set in GitHub repo settings.
+Go to **Actions → Deploy to Lightsail → Run workflow** on GitHub. All env vars are injected from GitHub Secrets — make sure all secrets are set before deploying.
