@@ -1,8 +1,9 @@
 import os
 import json
 import uuid
+import traceback
 import boto3
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, HttpUrl
 
@@ -41,10 +42,15 @@ def create_vendor_download_job(req: VendorDownloadRequest):
         "s3_key": s3_key,
     }
 
-    sqs.send_message(
-        QueueUrl=queue_url,
-        MessageBody=json.dumps(message),
-    )
+    try:
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message),
+        )
+    except Exception as e:
+        print("ERROR in /vendor-download-jobs:", repr(e), flush=True)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
     return {
         "job_id": job_id,
