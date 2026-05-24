@@ -9,7 +9,10 @@ from pydantic import BaseModel, HttpUrl
 
 router = APIRouter(tags=["Vendor Dataload"])
 
-sqs = boto3.client("sqs", region_name="us-east-1")
+AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+sqs = boto3.client("sqs", region_name=AWS_REGION)
+
+print(boto3.client("sts").get_caller_identity(), flush=True)
 
 
 class VendorDownloadRequest(BaseModel):
