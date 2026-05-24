@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, HttpUrl
 
-router = APIRouter(tags=["Vendors"])
+router = APIRouter(tags=["Vendor Dataload"])
 
 sqs = boto3.client("sqs", region_name="us-east-1")
 
@@ -14,7 +14,7 @@ sqs = boto3.client("sqs", region_name="us-east-1")
 class VendorDownloadRequest(BaseModel):
     vendor: str
     url: HttpUrl
-    datasetId: str
+    datasetId: int
     business_date: str
 
 

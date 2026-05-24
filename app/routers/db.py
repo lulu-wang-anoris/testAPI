@@ -3,7 +3,7 @@ import psycopg2
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-router = APIRouter(tags=["PostgreSQL"])
+router = APIRouter(tags=["PostgreSQL Database"])
 
 
 def get_db_conn():
@@ -17,7 +17,7 @@ def get_db_conn():
     )
 
 
-@router.get("/db-health")
+@router.get("/db/health")
 def db_health():
     try:
         conn = get_db_conn()
@@ -27,7 +27,7 @@ def db_health():
         return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
 
 
-@router.get("/db-tables")
+@router.get("/db/tables")
 def list_tables():
     try:
         conn = get_db_conn()
