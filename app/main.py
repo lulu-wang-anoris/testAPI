@@ -44,7 +44,7 @@ def env():
     return {k: os.environ.get(k, "") for k in safe_keys}
 
 
-@app.get("/db-health")
+@app.get("/db-health", tags=["PostgreSQL"])
 def db_health():
     try:
         conn = get_db_conn()
@@ -54,7 +54,7 @@ def db_health():
         return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
 
 
-@app.get("/db-tables")
+@app.get("/db-tables", tags=["PostgreSQL"])
 def list_tables():
     try:
         conn = get_db_conn()
