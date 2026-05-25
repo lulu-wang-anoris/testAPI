@@ -26,7 +26,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t testapi .
+          docker build -f app/Dockerfile -t testapi .
 
       - name: Push image to Lightsail
         run: |

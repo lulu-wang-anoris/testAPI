@@ -1,0 +1,123 @@
+import os
+import json
+import traceback
+import boto3
+import requests
+import psycopg2
+from datetime import datetime, timezone
+
+AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+SQS_QUEUE_URL = os.environ["SQS_QUEUE_URL"]
+
+DB_HOST = os.environ["DB_HOST"]
+DB_PORT = os.environ.get("DB_PORT", "5432")
+DB_NAME = os.environ["DB_NAME"]
+DB_USER = os.environ["DB_USER"]
+DB_PASSWORD = os.environ["DB_PASSWORD"]
+
+sqs = boto3.client("sqs", region_name=AWS_REGION)
+s3 = boto3.client("s3", region_name=AWS_REGION)
+
+
+def get_db_conn():
+    return psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD,
+    )
+
+
+def update_job(job_id, status, error_message=None):
+    conn = get_db_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if status == "PROCESSING":
+                    cur.execute("""
+                        UPDATE vendor_download_jobs
+                        SET status = %s,
+                            started_at = COALESCE(started_at, now()),
+                            updated_at = now()
+                        WHERE job_id = %s
+                    """, (status, job_id))
+                elif status in ("SUCCEEDED", "FAILED"):
+                    cur.execute("""
+                        UPDATE vendor_download_jobs
+                        SET status = %s,
+                            error_message = %s,
+                            completed_at = now(),
+                            updated_at = now()
+                        WHERE job_id = %s
+                    """, (status, error_message, job_id))
+    finally:
+        conn.close()
+
+
+def process_message(message):
+    body = json.loads(message["Body"])
+
+    job_id = body["job_id"]
+    vendor_url = body["vendor_url"]
+    s3_bucket = body["s3_bucket"]
+    s3_key = body["s3_key"]
+
+    print(f"Processing job_id={job_id}", flush=True)
+
+    update_job(job_id, "PROCESSING")
+
+    with requests.get(vendor_url, stream=True, timeout=120) as response:
+        response.raise_for_status()
+
+        s3.upload_fileobj(
+            response.raw,
+            s3_bucket,
+            s3_key,
+            ExtraArgs={
+                "ContentType": "text/csv"
+            }
+        )
+
+    update_job(job_id, "SUCCEEDED")
+
+    sqs.delete_message(
+        QueueUrl=SQS_QUEUE_URL,
+        ReceiptHandle=message["ReceiptHandle"]
+    )
+
+    print(f"Completed job_id={job_id}, s3://{s3_bucket}/{s3_key}", flush=True)
+
+
+def main():
+    resp = sqs.receive_message(
+        QueueUrl=SQS_QUEUE_URL,
+        MaxNumberOfMessages=1,
+        WaitTimeSeconds=10,
+        VisibilityTimeout=600,
+    )
+
+    messages = resp.get("Messages", [])
+
+    if not messages:
+        print("No messages found. Exiting.", flush=True)
+        return
+
+    for message in messages:
+        try:
+            process_message(message)
+        except Exception as e:
+            print("Worker failed:", repr(e), flush=True)
+            traceback.print_exc()
+
+            try:
+                body = json.loads(message["Body"])
+                update_job(body["job_id"], "FAILED", str(e))
+            except Exception:
+                traceback.print_exc()
+
+            raise
+
+
+if __name__ == "__main__":
+    main()
