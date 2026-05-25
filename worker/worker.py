@@ -67,7 +67,7 @@ def process_message(message):
     body = json.loads(message["Body"])
 
     job_id = body["job_id"]
-    vendor_url = body["vendor_url"]
+    vendor_url = body.get("vendor_url") or body.get("url")
     s3_bucket = body["s3_bucket"]
     s3_key = body["s3_key"]
 
