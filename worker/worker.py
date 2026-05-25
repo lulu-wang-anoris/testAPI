@@ -1,10 +1,18 @@
 import os
 import json
+import logging
 import traceback
 import boto3
 import requests
 import psycopg2
 from datetime import datetime, timezone
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+logger = logging.getLogger(__name__)
 
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 SQS_QUEUE_URL = os.environ["SQS_QUEUE_URL"]
@@ -63,7 +71,7 @@ def process_message(message):
     s3_bucket = body["s3_bucket"]
     s3_key = body["s3_key"]
 
-    print(f"Processing job_id={job_id}", flush=True)
+    logger.info(f"[{job_id}] Processing job — vendor_url={vendor_url} s3_key={s3_key}")
 
     update_job(job_id, "PROCESSING")
 
@@ -86,7 +94,7 @@ def process_message(message):
         ReceiptHandle=message["ReceiptHandle"]
     )
 
-    print(f"Completed job_id={job_id}, s3://{s3_bucket}/{s3_key}", flush=True)
+    logger.info(f"[{job_id}] Completed — s3://{s3_bucket}/{s3_key}")
 
 
 def main():
@@ -100,15 +108,14 @@ def main():
     messages = resp.get("Messages", [])
 
     if not messages:
-        print("No messages found. Exiting.", flush=True)
+        logger.info("No messages found. Exiting.")
         return
 
     for message in messages:
         try:
             process_message(message)
         except Exception as e:
-            print("Worker failed:", repr(e), flush=True)
-            traceback.print_exc()
+            logger.error(f"Worker failed: {repr(e)}", exc_info=True)
 
             try:
                 body = json.loads(message["Body"])
