@@ -44,7 +44,7 @@ def update_job(job_id, status, error_message=None):
             with conn.cursor() as cur:
                 if status == "PROCESSING":
                     cur.execute("""
-                        UPDATE vendor_download_jobs
+                        UPDATE app.vendor_download_jobs
                         SET status = %s,
                             started_at = COALESCE(started_at, now()),
                             updated_at = now()
@@ -52,7 +52,7 @@ def update_job(job_id, status, error_message=None):
                     """, (status, job_id))
                 elif status in ("SUCCEEDED", "FAILED"):
                     cur.execute("""
-                        UPDATE vendor_download_jobs
+                        UPDATE app.vendor_download_jobs
                         SET status = %s,
                             error_message = %s,
                             completed_at = now(),
