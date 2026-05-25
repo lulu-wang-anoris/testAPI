@@ -1,4 +1,4 @@
-name: Deploy Worker to ECS
+name: Deploy Worker to ECR
 
 on:
   workflow_dispatch:
@@ -25,20 +25,8 @@ jobs:
       - name: Build and push worker image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: testapi-worker
+          ECR_REPOSITORY: moodys-download-worker
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG worker/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Deploy to ECS
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: testapi-worker
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          aws ecs update-service \
-            --cluster testapi-cluster \
-            --service testapi-worker \
-            --force-new-deployment \
-            --region us-east-1
