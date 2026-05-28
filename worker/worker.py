@@ -100,7 +100,7 @@ def process_message(message):
 def main():
     resp = sqs.receive_message(
         QueueUrl=SQS_QUEUE_URL,
-        MaxNumberOfMessages=1,
+        MaxNumberOfMessages=10,
         WaitTimeSeconds=10,
         VisibilityTimeout=600,
     )
