@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from dotenv import load_dotenv
-from app.routers import db, vendors
+from app.routers import db, vendors, moodys
 
 load_dotenv()
 
@@ -11,6 +11,7 @@ app = FastAPI(title="Anoris Capital API", version=APP_VERSION)
 
 app.include_router(db.router)
 app.include_router(vendors.router)
+app.include_router(moodys.router)
 
 
 @app.get("/")
