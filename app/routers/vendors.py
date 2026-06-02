@@ -17,13 +17,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Vendor Dataload"])
+router = APIRouter(tags=["Datafeed Download"])
 
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 sqs = boto3.client("sqs", region_name=AWS_REGION)
 
 
-class VendorDownloadRequest(BaseModel):
+class DatafeedDownloadRequest(BaseModel):
     vendor: str
     url: HttpUrl
     datasetId: int
@@ -31,8 +31,8 @@ class VendorDownloadRequest(BaseModel):
     output_file_name: str
 
 
-@router.post("/vendor-download-jobs")
-def create_vendor_download_job(req: VendorDownloadRequest):
+@router.post("/datafeed-download-jobs")
+def create_vendor_download_job(req: DatafeedDownloadRequest):
     job_id = str(uuid.uuid4())
     queue_url = os.environ["SQS_QUEUE_URL"]
     s3_bucket = os.environ["S3_BUCKET"]
@@ -90,7 +90,7 @@ def create_vendor_download_job(req: VendorDownloadRequest):
         logger.info(f"[{job_id}] Stage 2/2: SQS message sent successfully")
 
     except Exception as e:
-        logger.error(f"[{job_id}] ERROR in /vendor-download-jobs: {repr(e)}", exc_info=True)
+        logger.error(f"[{job_id}] ERROR in /datafeed-download-jobs: {repr(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
     logger.info(f"[{job_id}] Job queued successfully — s3_key={s3_key}")
@@ -102,7 +102,7 @@ def create_vendor_download_job(req: VendorDownloadRequest):
     }
 
 
-@router.get("/vendor-download-jobs/{job_id}")
+@router.get("/datafeed-download-jobs/{job_id}")
 def get_job_status(job_id: str):
     logger.info(f"[{job_id}] Checking job status")
     try:
